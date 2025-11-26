@@ -1,10 +1,12 @@
 package com.jiralite.comment;
 
+import com.jiralite.mapper.CommentMapper;
 import com.jiralite.task.Task;
 import com.jiralite.task.TaskRepository;
 import com.jiralite.user.User;
 import com.jiralite.user.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CommentService {
@@ -35,25 +38,17 @@ public class CommentService {
         comment.setAuthor(author);
         
         Comment savedComment = commentRepository.save(comment);
+        log.info("Comment added: id={}, taskId={}, authorId={}", 
+                savedComment.getId(), taskId, author.getId());
         
-        return mapToResponse(savedComment);
+        return CommentMapper.toResponse(savedComment);
     }
     
     @Transactional(readOnly = true)
     public List<CommentResponse> getCommentsByTaskId(Long taskId) {
         List<Comment> comments = commentRepository.findByTaskId(taskId);
         return comments.stream()
-                .map(this::mapToResponse)
+                .map(CommentMapper::toResponse)
                 .collect(Collectors.toList());
-    }
-    
-    private CommentResponse mapToResponse(Comment comment) {
-        CommentResponse response = new CommentResponse();
-        response.setId(comment.getId());
-        response.setText(comment.getText());
-        response.setTaskId(comment.getTask().getId());
-        response.setAuthorName(comment.getAuthor().getUsername());
-        response.setCreatedAt(comment.getCreatedAt());
-        return response;
     }
 }

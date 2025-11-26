@@ -1,14 +1,17 @@
 package com.jiralite.project;
 
+import com.jiralite.mapper.ProjectMapper;
 import com.jiralite.user.User;
 import com.jiralite.user.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ProjectService {
@@ -28,14 +31,16 @@ public class ProjectService {
         project.setCreatedBy(currentUser);
         
         Project savedProject = projectRepository.save(project);
+        log.info("Project created: id={}, name={}, createdBy={}", 
+                savedProject.getId(), savedProject.getName(), username);
         
-        return mapToResponse(savedProject);
+        return ProjectMapper.toResponse(savedProject);
     }
     
     @Transactional(readOnly = true)
     public Page<ProjectResponse> getAllProjects(Pageable pageable) {
         return projectRepository.findAll(pageable)
-                .map(this::mapToResponse);
+                .map(ProjectMapper::toResponse);
     }
     
     @Transactional(readOnly = true)
@@ -43,18 +48,6 @@ public class ProjectService {
         Project project = projectRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Project not found"));
         
-        return mapToResponse(project);
-    }
-    
-    private ProjectResponse mapToResponse(Project project) {
-        ProjectResponse response = new ProjectResponse();
-        response.setId(project.getId());
-        response.setName(project.getName());
-        response.setDescription(project.getDescription());
-        response.setCreatedBy(project.getCreatedBy().getUsername());
-        response.setCreatedAt(project.getCreatedAt());
-        response.setUpdatedAt(project.getUpdatedAt());
-        response.setTaskCount(project.getTasks().size());
-        return response;
+        return ProjectMapper.toResponse(project);
     }
 }

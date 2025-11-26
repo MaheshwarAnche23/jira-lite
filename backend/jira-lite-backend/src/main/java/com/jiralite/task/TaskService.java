@@ -1,10 +1,12 @@
 package com.jiralite.task;
 
+import com.jiralite.mapper.TaskMapper;
 import com.jiralite.project.Project;
 import com.jiralite.project.ProjectRepository;
 import com.jiralite.user.User;
 import com.jiralite.user.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -14,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class TaskService {
@@ -44,14 +47,19 @@ public class TaskService {
         }
         
         Task savedTask = taskRepository.save(task);
+        log.info("Task created: id={}, title={}, projectId={}, assigneeId={}", 
+                savedTask.getId(), savedTask.getTitle(), projectId, 
+                savedTask.getAssignee() != null ? savedTask.getAssignee().getId() : null);
         
-        return mapToResponse(savedTask);
+        return TaskMapper.toResponse(savedTask);
     }
     
     @Transactional
     public TaskResponse updateTaskStatus(Long taskId, TaskStatus status) {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new RuntimeException("Task not found"));
+        
+        TaskStatus oldStatus = task.getStatus();
         
         // Check if user has permission to change status
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -66,8 +74,10 @@ public class TaskService {
         
         task.setStatus(status);
         Task updatedTask = taskRepository.save(task);
+        log.info("Task status changed: taskId={}, oldStatus={}, newStatus={}, changedBy={}", 
+                taskId, oldStatus, status, username);
         
-        return mapToResponse(updatedTask);
+        return TaskMapper.toResponse(updatedTask);
     }
     
     @Transactional
@@ -78,10 +88,13 @@ public class TaskService {
         User assignee = userRepository.findById(assigneeId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         
+        String assignedBy = SecurityContextHolder.getContext().getAuthentication().getName();
         task.setAssignee(assignee);
         Task updatedTask = taskRepository.save(task);
+        log.info("Task assigned: taskId={}, assigneeId={}, assignedBy={}", 
+                taskId, assigneeId, assignedBy);
         
-        return mapToResponse(updatedTask);
+        return TaskMapper.toResponse(updatedTask);
     }
     
     @Transactional(readOnly = true)
@@ -100,7 +113,7 @@ public class TaskService {
         }
         
         return tasks.stream()
-                .map(this::mapToResponse)
+                .map(TaskMapper::toResponse)
                 .collect(Collectors.toList());
     }
     
@@ -109,23 +122,6 @@ public class TaskService {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new RuntimeException("Task not found"));
         
-        return mapToResponse(task);
-    }
-    
-    private TaskResponse mapToResponse(Task task) {
-        TaskResponse response = new TaskResponse();
-        response.setId(task.getId());
-        response.setTitle(task.getTitle());
-        response.setDescription(task.getDescription());
-        response.setStatus(task.getStatus());
-        response.setPriority(task.getPriority());
-        response.setDueDate(task.getDueDate());
-        response.setProjectId(task.getProject().getId());
-        response.setProjectName(task.getProject().getName());
-        response.setAssigneeName(task.getAssignee() != null ? task.getAssignee().getUsername() : null);
-        response.setCreatedAt(task.getCreatedAt());
-        response.setUpdatedAt(task.getUpdatedAt());
-        response.setCommentCount(task.getComments().size());
-        return response;
+        return TaskMapper.toResponse(task);
     }
 }
